@@ -1,0 +1,125 @@
+---
+title: "Inflation OECD 2015-2020"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: scroll
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+library(tidyverse)
+library(DT)
+library(shiny)
+load("Inf533687_7.Rdata")
+startData <- df_1
+### startData <- startData %>% filter(Measure == "Percentage change from previous period")
+startData$ID <- seq.int(nrow(startData))    ###ID column
+CNYu <-  as.list(startData %>% distinct(Country))
+CNYu <- sort(CNYu[[1]], decreasing = F)
+INFm <-  as.list(startData %>% distinct(Subject))
+INFm <- sort(INFm[[1]], decreasing = F)
+MEAc <-  as.list(startData %>% distinct(Measure))
+MEAc <- sort(MEAc[[1]], decreasing = F)
+TIMc <-  as.list(startData %>% distinct(TIME))
+TIMc <- sort(TIMc[[1]], decreasing = T)
+
+
+
+
+sapply(startData, class)
+
+updateData <- reactive(
+  startData %>% filter(Country == input$CNY, Subject == input$INF, FREQUENCY == input$FREQ, Measure == input$MEA) 
+  %>% select(-c(3,6))
+  %>% arrange(desc(ID)))
+  
+timeData <- reactive(
+  startData %>% filter(TIME == input$TIM, Subject == input$INF, FREQUENCY == input$FREQ, Measure == input$MEA)
+  %>% select(-c(3,6))
+  %>% arrange(Country))
+
+
+  
+  
+
+```
+Tables
+=====================================  
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+### Inputs
+
+```{r}
+selectInput(inputId = "CNY",label = "Choose Country",choices = CNYu, selected = "Sweden")
+selectInput(inputId = "INF",label = "Choose CPI", choices = INFm, selected = "CPI: 01-12 - All items")
+selectInput(inputId = "MEA",label = "Choose Indexing", choices = MEAc, selected = "Percentage change from previous period")
+radioButtons("FREQ", "Frequency of Data:",
+               c("Annual" = "A",
+                 "Quarterly" = "Q",
+                 "Monthly" = "M"
+                 ), selected = "Q")
+
+selectInput(inputId = "TIM",label = "Choose a Period (latest)",choices = TIMc)
+```
+
+Column 
+-----------------------------------------------------------------------
+
+### By Country (upper table)
+
+```{r}
+renderDT(
+  updateData(), rownames = F, filter="top", editable=T,
+  options = list(
+    lengthMenu = list(c(5,10,50,-1),c(5,10,50,"All")))
+)
+
+```
+By Time Period (lower table)
+
+```{r}
+renderDT(
+  timeData(), rownames = F, extensions = 'Buttons', filter="top", editable=T,
+  options = list(
+    dom = 'Blfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    lengthMenu = list(c(5,10,50,-1),c(5,10,50,"All")))
+)
+
+```
+
+Plot {data-orientation=rows}
+=====================================  
+
+Row  {data-height=600}
+-----------------------------------------------------------------------
+
+### Plot
+
+```{r echo=FALSE}
+
+renderPlot(
+    startData %>% 
+    filter(Country == input$CNY, Subject == input$INF, FREQUENCY == input$FREQ, Measure == input$MEA) %>%
+      mutate(dates = as.numeric(TIME)) %>%
+    ggplot(aes(dates, Value)) +
+    geom_point()+
+    geom_smooth(method="loess", se=TRUE)+
+    ##### xlab(2016,2020)   Breaks loess  
+    labs(title = input$CNY, subtitle = input$INF)
+    
+)
+
+
+
+```
+
+
+
+
+
